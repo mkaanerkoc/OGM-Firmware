@@ -3,7 +3,7 @@
 #include "MKEBME280.h"
 #include "Constants.h"
 #include "UtilFunctions.h"
-
+#include "LogFunctions.h"
 
 BluetoothInterface ble;
 ModbusMaster mm;
@@ -102,6 +102,7 @@ String ReadAllSensors(){
   #endif
   sprintf(logBuffer, "%02d:%02d:%02d;%.2f;%.2f;%.2f;%.2f;%.2f;%.2f;%.2f;%.2f",hour(),minute(),second(),pH,conductivity,turbidity,oxygen,calculateFlowFromHeight(670,*distance),waterTemp,tempC,humdC);
   Serial.println(logBuffer);
+  WriteDataLog(logBuffer);
   return "";
 }
 
