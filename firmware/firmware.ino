@@ -35,8 +35,8 @@ void loop() {
 String ReadAllSensors(){
   //
   Serial.println("");
-  uint16_t *turb,*phAndTemp,*distance;
-  float turbidity,pH,waterTemp;
+  uint16_t *turb,*phAndTemp,*distance,*cond;
+  float turbidity,pH,waterTemp,conductivity;
     digitalClockDisplay();
   phAndTemp = mm.Function3(PH_SENSOR_DEV_ID,PH_SENSOR_PH_REGISTER,2);
   pH = (float)phAndTemp[0]/10;
@@ -56,11 +56,15 @@ String ReadAllSensors(){
 
   delay(5);
 
- distance = mm.Function3(ULTRASONIC_SENSOR_DEV_ID,DISTANCE_REGISTER,1);
- Serial.print("Distance : ");
- Serial.println(*distance);
+  distance = mm.Function3(ULTRASONIC_SENSOR_DEV_ID,DISTANCE_REGISTER,1);
+  Serial.print("Distance : ");
+  Serial.println(*distance);
   
-  
+  cond    = mm.Function4(CONDUCTIVITY_SENSOR_DEV_ID,CONDUCTIVITY_REGISTER,2);
+  conductivity = floatFromTwoRegister(true,cond[0],cond[1]);
+  Serial.print("Conductivity : ");
+  Serial.println(conductivity);
+ 
   return "";
 }
 
