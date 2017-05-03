@@ -24,6 +24,7 @@ void ModbusMaster::config(HardwareSerial* port,uint16_t baudRate) {
 }
 
 uint8_t ModbusMaster::Function6(uint8_t slaveID,uint16_t registerAddress,uint16_t registerValue){
+  uint8_t _cnt;
   free(msg);
   msg = (uint8_t*)malloc(sizeof(uint8_t)*8);
   msg[0]=slaveID;
@@ -46,14 +47,10 @@ uint8_t ModbusMaster::Function6(uint8_t slaveID,uint16_t registerAddress,uint16_
   while(millis()<_timer+3000){
     if((*_port).available()>0){
       char c = (*_port).available();
-      if((uint8_t)c!=len)
-        return 0;
-      for(int j=0;j<c;j++){
-        msg[j]=(uint8_t)(*_port).read();
-        delay(1);
-      }
+      msg[_cnt]=(uint8_t)(*_port).read();
+      _cnt++;
+      if(_cnt==len)break;
     }
-    break;
   }
   crc = calculateCRC(slaveID,(msg+1),5);
   rcv_crc=(msg[len-2]<<8)|msg[len-1];
@@ -61,20 +58,21 @@ uint8_t ModbusMaster::Function6(uint8_t slaveID,uint16_t registerAddress,uint16_
     return 1;
   }
   else{
-    0;
+    return 0;
   }
 }
 uint16_t* ModbusMaster::Function4(uint8_t slaveID,uint16_t registerAddress,uint16_t registerCount){
 
   free(msg);
   free(output);
+  uint8_t _cnt;
   output = (uint16_t*)malloc(sizeof(uint16_t)*registerCount);
   for(int i = 0 ; i < registerCount;i++){
     output[i]=0xffff;
   }
   msg = (uint8_t*)malloc(sizeof(uint8_t)*8);
   if(!msg){
-    //(*_port).println("An error occured..");
+    Serial.println("An error occured..");
     return output;
   }
   msg[0]=slaveID;
@@ -87,7 +85,7 @@ uint16_t* ModbusMaster::Function4(uint8_t slaveID,uint16_t registerAddress,uint1
   msg[6]=crc>>8;
   msg[7]=(crc&0xff);
   len = 5+registerCount*2;
-  //uint8_t ind=0;
+
   _timer=millis();
   for(int i = 0 ; i < 8 ; i++){
     (*_port).write(msg[i]);
@@ -99,16 +97,13 @@ uint16_t* ModbusMaster::Function4(uint8_t slaveID,uint16_t registerAddress,uint1
   while(millis()<_timer+3000){
     if((*_port).available()>0){
       char c = (*_port).available();
-      if((uint8_t)c!=len)
-        return output;
-      for(int j=0;j<c;j++){
-        msg[j]=(uint8_t)(*_port).read();
-      }
-      break;
+      msg[_cnt]=(uint8_t)(*_port).read();
+      _cnt++;
+      if(_cnt==len)break;
     }
   }
   (*_port).flush();
-  //PDU RECEIVED IF ANY
+
   crc = calculateCRC(slaveID,(msg+1),len-3);
   if(crc==((msg[len-2]<<8)|msg[len-1])){
     //CRC IS CORRECT
@@ -119,7 +114,6 @@ uint16_t* ModbusMaster::Function4(uint8_t slaveID,uint16_t registerAddress,uint1
       }
       return output;
     }
-
   }
 }
 
@@ -127,6 +121,7 @@ uint16_t* ModbusMaster::Function3(uint8_t slaveID,uint16_t registerAddress,uint1
 
   free(msg);
   free(output);
+  uint8_t _cnt;
   output = (uint16_t*)malloc(sizeof(uint16_t)*registerCount);
   for(int i = 0 ; i < registerCount;i++){
     output[i]=0xffff;
@@ -146,37 +141,25 @@ uint16_t* ModbusMaster::Function3(uint8_t slaveID,uint16_t registerAddress,uint1
   msg[6]=crc>>8;
   msg[7]=(crc&0xff);
   len = 5+registerCount*2;
-  //uint8_t ind=0;
+
   _timer=millis();
-  Serial.print("Sent message : ");
   for(int i = 0 ; i < 8 ; i++){
     (*_port).write(msg[i]);
-    Serial.print(msg[i],HEX);
-    Serial.print(" ");
     msg[i]=0;
   }
-  Serial.println("");
 
   free(msg);
   msg=(uint8_t*)malloc(sizeof(uint8_t)*len);
   while(millis()<_timer+3000){
     if((*_port).available()>0){
-      //char c = (*_port).available();
-      //if((uint8_t)c!=len)
-        //return output;
-      Serial.print("Received message : ");
-
-      for(int j=0;j<len;j++){
-        msg[j]=(uint8_t)(*_port).read();
-        Serial.print(msg[j],HEX);
-        Serial.print(" ");
-      }
-      Serial.println("");
-      break;
+      char c = (*_port).available();
+      msg[_cnt]=(uint8_t)(*_port).read();
+      _cnt++;
+      if(_cnt==len)break;
     }
   }
-  //(*_port).flush();
-  //PDU RECEIVED IF ANY
+  (*_port).flush();
+
   crc = calculateCRC(slaveID,(msg+1),len-3);
   if(crc==((msg[len-2]<<8)|msg[len-1])){
     //CRC IS CORRECT
@@ -187,7 +170,6 @@ uint16_t* ModbusMaster::Function3(uint8_t slaveID,uint16_t registerAddress,uint1
       }
       return output;
     }
-
   }
 }
 

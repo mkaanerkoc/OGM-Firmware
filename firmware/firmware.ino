@@ -25,6 +25,8 @@ void loop() {
   //ble.receive();
   if(millis()>sysTick+SYSTICK_TIMER*5){
     sysTick=millis();
+    Serial.println("");
+    digitalClockDisplay();
     ReadAllSensors();
 
 
@@ -34,10 +36,12 @@ void loop() {
 
 String ReadAllSensors(){
   //
-  Serial.println("");
-  uint16_t *turb,*phAndTemp,*distance,*cond;
-  float turbidity,pH,waterTemp,conductivity;
-    digitalClockDisplay();
+  uint16_t *turb,*phAndTemp,*distance,*cond,*oxy;
+  float turbidity,pH,waterTemp,conductivity,oxygen;
+ 
+    
+  //mm.Function6(OXYGEN_SENSOR_DEV_ID,OXYGEN_TRIG_REGISTER,OXYGEN_TRIG_VALUE);
+  delay(5);
   phAndTemp = mm.Function3(PH_SENSOR_DEV_ID,PH_SENSOR_PH_REGISTER,2);
   pH = (float)phAndTemp[0]/10;
   waterTemp = (float)phAndTemp[1]/100;
@@ -59,11 +63,20 @@ String ReadAllSensors(){
   distance = mm.Function3(ULTRASONIC_SENSOR_DEV_ID,DISTANCE_REGISTER,1);
   Serial.print("Distance : ");
   Serial.println(*distance);
+
+  delay(5);
   
   cond    = mm.Function4(CONDUCTIVITY_SENSOR_DEV_ID,CONDUCTIVITY_REGISTER,2);
   conductivity = floatFromTwoRegister(true,cond[0],cond[1]);
   Serial.print("Conductivity : ");
   Serial.println(conductivity);
+
+  delay(5);
+  
+  oxy    = mm.Function3(OXYGEN_SENSOR_DEV_ID,OXYGEN_PPM_REGISTER,1);
+  oxygen = (float)(*oxy)/100;
+  Serial.print("Oxygen in PPM : ");
+  Serial.println(oxygen);
  
   return "";
 }
