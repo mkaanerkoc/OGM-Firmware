@@ -9,7 +9,7 @@ uint8_t initSDCard(){
 }
 uint8_t WriteDataLog(uint8_t _day,uint8_t _month,uint8_t _year,char *buf){
   uint8_t b = 0;
-  char fileName[10];
+  char fileName[12];
   sprintf(fileName,"02d-%02d-%02d",_day,_month,_year%2000);
   myFile = SD.open("test.txt", FILE_WRITE);
   if (myFile) {
@@ -27,5 +27,115 @@ uint8_t WriteSamplerLog(){
 
 uint8_t WriteDeviceLog(){
   return 1;
+}
+
+void printDirectory(File dir, int numTabs) {
+   while(true) {
+     
+     File entry =  dir.openNextFile();
+     if (! entry) {
+       // no more files
+       Serial.println("**nomorefiles**");
+       break;
+     }
+     for (uint8_t i=0; i<numTabs; i++) {
+       Serial.print('\t');
+     }
+     Serial.print(entry.name());
+     if (entry.isDirectory()) {
+       Serial.println("/");
+       printDirectory(entry, numTabs+1);
+     } else {
+       // files have sizes, directories do not
+       Serial.print("\t\t");
+       Serial.println(entry.size(), DEC);
+     }
+     entry.close();
+   }
+}
+
+
+void writeToFile(const char *dir,const char* filename, char *data){
+  char fileName[32];
+  if(!SD.exists(dir)){
+    SD.mkdir(dir);
+  }
+  File file = SD.open(dir);
+  sprintf(fileName,"%s/%s",dir,filename);
+  file = SD.open(fileName, FILE_WRITE);
+  file.println(data);
+  file.close();
+}
+void readFromFile(const char *dir,const char* filename){
+  char fileName[32];
+  if(!SD.exists(dir)){
+    SD.mkdir(dir);
+  }
+  File file = SD.open(dir);
+  sprintf(fileName,"%s/%s",dir,filename);
+  file = SD.open(fileName, FILE_READ);
+  while (file.available()) {
+      Serial.write(file.read());
+  }
+}
+
+void sendFileViaBluetooth(const char *dir,const char* filename){
+  delay(200);
+  char fileName[32];
+  if(!SD.exists(dir)){
+    return;
+  }
+  File file = SD.open(dir);
+  sprintf(fileName,"%s/%s",dir,filename);
+  if(SD.exists(fileName)){
+    Serial5.print("X");
+    delay(200);
+    file = SD.open(fileName, FILE_READ);
+    while (file.available()) {
+        Serial5.write(file.read());
+        delay(1);
+    }
+    delay(200);
+    Serial5.print("Y");
+  }
+  else{
+    Serial5.print("qwe");
+  }
+  
+}
+
+void sendFileNamesViaBluetooth(const char *dirr){
+  File dir = SD.open(dirr);
+  while(true){
+     File entry =  dir.openNextFile();
+     if (! entry) {
+       // no more files
+       break;
+     }
+     Serial5.write("Q");
+     if (!entry.isDirectory()) {
+        // files have sizes, directories do not
+       Serial5.print(entry.name());
+       Serial5.print(";");
+       Serial5.println(entry.size(), DEC);
+     } 
+     entry.close();
+     Serial5.write("W");
+   }
+}
+void logAtBoot(){
+  char fileName[32];
+  char logRow[32];
+  sprintf(fileName,"%02d-%02d-%02d.dd",day(),month(),(year()%2000));
+  sprintf(logRow,"Boot at : %02d:%02d:%02d",hour(),minute(),second());
+  writeToFile("device",fileName,logRow);
+}
+
+void samplerLog(const char *log_){
+  char fileName[32];
+  char logRow[48];
+  sprintf(fileName,"%02d-%02d-%02d.sa",day(),month(),(year()%2000));
+  sprintf(logRow,"%s at : %02d:%02d:%02d",log_,hour(),minute(),second());
+  writeToFile("sampler",fileName,logRow);
 }
 
