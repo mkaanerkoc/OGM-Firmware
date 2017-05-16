@@ -81,6 +81,7 @@ void readFromFile(const char *dir,const char* filename){
 
 void sendFileViaBluetooth(const char *dir,const char* filename){
   delay(200);
+  volatile uint32_t i=0;
   char fileName[32];
   if(!SD.exists(dir)){
     return;
@@ -94,6 +95,7 @@ void sendFileViaBluetooth(const char *dir,const char* filename){
     while (file.available()) {
         Serial5.write(file.read());
         delay(1);
+        
     }
     delay(200);
     Serial5.print("Y");

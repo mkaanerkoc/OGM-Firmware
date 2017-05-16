@@ -7,6 +7,9 @@
 #include "Constants.h"
 #include "UtilFunctions.h"
 #include "LogFunctions.h"
+#include "MotorFunctions.h"
+#include "DeviceParams.h"
+
 #include <Adafruit_SleepyDog.h>
 
 
@@ -27,6 +30,8 @@ char logBuffer[196];
 char fname[10];
 volatile static uint8_t PROGRAM_STATE = DATA_LOG_STATE;
 
+//DEVICE PARAMETERS//
+
 void tCallback(uint8_t tid){
   
   digitalClockDisplay();
@@ -40,6 +45,7 @@ void tCallback(uint8_t tid){
 
 
 void bCurrentDatasCallback(byte *params){
+  Serial.println("Datalar sorgulandi..");
   ReadAllSensors();
   Serial5.write("X");
   
@@ -79,89 +85,18 @@ void bFilesCallback(byte *params){
   }
   
 }
+void bMotorTestCallback(byte *params){
+  Serial.println("Motor Test Callback");
+  handleMotorCommand(params);
+  
+}
 void bDevStatCallback(byte *params){
   
   
 }
 void bDevConfCallback(byte* params){
   Serial.println("Device Configuration Callback");
-  uint8_t msgCode = params[1];
-  uint8_t fCode = params[2];
-  /*if(msgCode==0x00){
-    Serial.println("Device Parameters");
-    if(fCode==0x01){
-      Serial.println("Read Configuration ");
-      eeprom.readConfigStruct(&devConfStr);
-      char configBuffer[128];
-      sprintf(configBuffer,"%d;%d;%2.2f;%2.2f;%2.2f;%2.2f;%2.2f;%2.2f;%2.2f;%2.2f;%2.2f;%d;%d;%d;%d;%d;%d;%d",devConfStr.deviceID,devConfStr.fieldID,devConfStr.phLowThr,devConfStr.phHighThr,devConfStr.conductivityLowThr,devConfStr.conductivityHighThr,
-              devConfStr.turbidityLowThr,devConfStr.turbidityHighThr,devConfStr.oxygenLowThr,devConfStr.oxygenHighThr,devConfStr.rainHighThr,devConfStr.rainWaitTime,devConfStr.timeBasedWaterSamplingTime,devConfStr.eventBasedWaterSamplingTime,devConfStr.timeBasedAcideSamplingTime,
-                devConfStr.eventBasedAcideSamplingTime,devConfStr.readPeriod,devConfStr.notchHeight);
-      Serial5.print("X");
-      delay(100);
-      for(int i = 0 ; i < strlen(configBuffer);i++){
-        Serial5.write(configBuffer[i]);
-      }
-      delay(100);
-      Serial5.print("Y");
-    }
-    else if(fCode==0x02){
-      char * pch;
-      Serial.print("Splitting string \"%s\" into tokens: ");
-      Serial.println((char*)params);
-      pch = strtok (((char*)params+3),";");
-      while (pch != NULL)
-      {
-        Serial.println(pch);
-        pch = strtok (NULL, ";");
-      }
-    }
-  }
-  else if(msgCode==0x10){
-    Serial.println("Sampling Times");
-     uint8_t fCode = params[2];
-     if(fCode==0x02){
-       samplerConfStr.weekDay1 = params[3];
-       samplerConfStr.hour1 = params[4];
-       samplerConfStr.minute1 = params[5];
-       samplerConfStr.weekDay2 = params[6];
-       samplerConfStr.hour2 = params[7];
-       samplerConfStr.minute2 = params[8];
-       //eeprom.writeSamplerTimeStruct(samplerConfStr);
-       Serial5.print("OK");
-     }
-     else if(fCode==0x01){
-      // eeprom.readSamplerTimeStruct(&samplerConfStr);
-       char configBuffer[24];
-       sprintf(configBuffer,"%d;%d;%d;%d;%d;%d",samplerConfStr.weekDay1,samplerConfStr.hour1,samplerConfStr.minute1,samplerConfStr.weekDay2,samplerConfStr.hour2,samplerConfStr.minute2);
-       Serial5.print("X");
-       delay(100);
-       for(int i = 0 ; i < strlen(configBuffer);i++){
-          Serial5.write(configBuffer[i]);
-       }
-       delay(100);
-       Serial5.print("Y");
-     }
-  }
-  else */if(msgCode==0x20){
-    Serial.println("Date Time Settings");
-    uint8_t fCode = params[2];
-    if(fCode==0x01){
-      Serial.println("Read Settings");
-      char configBuffer[24];
-      sprintf(configBuffer,"X%02d:%02d:%02d %02d-%02d-%d",hour(),minute(),second(),day(),month(),year());
-      for(int i = 0 ; i < strlen(configBuffer);i++){
-          Serial5.write(configBuffer[i]);
-       }
-      delay(20);
-      Serial5.print("Y");
-    }
-    else if(fCode==0x02){
-      Serial.println("Write Settings");
-      setTime(params[3],params[4],params[5],params[6],params[7],params[8]);
-      Serial5.print("OK");
-    }
-  }
-  
+  handleDeviceParamsCommand(params);
   
 }
 void bCalibsCallback(byte* params){
@@ -190,7 +125,7 @@ void bProgramStateCallback(byte *params){
 void setup() {
   // put your setup code here, to run once:
   //setSyncProvider(getTeensy3Time);
-  //Serial.begin(115200);
+  Serial.begin(115200);
   //while(!Serial);
   
   mm.config(9600);
@@ -198,8 +133,7 @@ void setup() {
   
   setBME280Sensor();
   initSDCard();
-  //eeprom.enable(36,39);
-  //eeprom.config(36,39);
+  eeprom.enable(36,39);
   loader.begin();
   loader.registerCallback(&cb);
   
@@ -208,9 +142,12 @@ void setup() {
   ble.setCallback(FILE_CALLBACK,&bFilesCallback);
   ble.setCallback(CURRENT_DATA_CALLBACK,&bCurrentDatasCallback);
   ble.setCallback(SAMPLER_CALLBACK,&bSamplerCallback);
+  ble.setCallback(MOTOR_TEST_CALLBACK,&bMotorTestCallback);
+  
   digitalClockDisplay();
   //Serial1.flush();
   logAtBoot();
+  mm.clearBus();
   sysTick=millis();
 }
 
@@ -249,17 +186,15 @@ void loop() {
 
 void ReadAllSensors(){
   //
-
+  mm.clearBus();
   uint16_t *turb,*phAndTemp,*distance,*cond,*oxy;
   float turbidity,pH,waterTemp,conductivity,oxygen,tempC,humdC;
   uint16_t dist=0;
   bool isOxygenSensorReady= false;
 
-  mm.Function6(99,0,1,20);
+  isOxygenSensorReady=mm.writeSingleRegister(OXYGEN_SENSOR_DEV_ID,OXYGEN_TRIG_REGISTER,OXYGEN_TRIG_VALUE,SENSOR_TIME_OUT);
   delay(DELAY_BTW_SENSOR);
-  isOxygenSensorReady=mm.Function6(OXYGEN_SENSOR_DEV_ID,OXYGEN_TRIG_REGISTER,OXYGEN_TRIG_VALUE,SENSOR_TIME_OUT);
-  delay(DELAY_BTW_SENSOR);
-  phAndTemp = mm.Function3(PH_SENSOR_DEV_ID,PH_SENSOR_PH_REGISTER,1,SENSOR_TIME_OUT);
+  phAndTemp = mm.readHoldingRegisters(PH_SENSOR_DEV_ID,PH_SENSOR_PH_REGISTER,1,SENSOR_TIME_OUT);
   pH = (float)phAndTemp[0]/100;
   
   #ifdef _MKE_DEBUGGING_
@@ -268,7 +203,7 @@ void ReadAllSensors(){
   #endif
   delay(DELAY_BTW_SENSOR);
 
-  turb = mm.Function3(TURBIDITY_SENSOR_DEV_ID,TURBIDTIY_REGISTER,2,SENSOR_TIME_OUT);
+  turb = mm.readHoldingRegisters(TURBIDITY_SENSOR_DEV_ID,TURBIDTIY_REGISTER,2,SENSOR_TIME_OUT);
   turbidity = floatFromTwoRegister(true,turb[0],turb[1]);
 
   #ifdef _MKE_DEBUGGING_
@@ -277,7 +212,7 @@ void ReadAllSensors(){
   #endif
   delay(DELAY_BTW_SENSOR);
   
-  distance = mm.Function3(ULTRASONIC_SENSOR_DEV_ID,DISTANCE_REGISTER,1,SENSOR_TIME_OUT);
+  distance = mm.readHoldingRegisters(ULTRASONIC_SENSOR_DEV_ID,DISTANCE_REGISTER,1,SENSOR_TIME_OUT);
   dist = *distance;
   #ifdef _MKE_DEBUGGING_
   Serial.print("Distance : ");
@@ -285,7 +220,7 @@ void ReadAllSensors(){
   #endif
   delay(DELAY_BTW_SENSOR);
   
-  cond    = mm.Function4(CONDUCTIVITY_SENSOR_DEV_ID,CONDUCTIVITY_REGISTER,4,SENSOR_TIME_OUT);
+  cond    = mm.readInputRegisters(CONDUCTIVITY_SENSOR_DEV_ID,CONDUCTIVITY_REGISTER,4,SENSOR_TIME_OUT);
   conductivity = floatFromTwoRegister(true,cond[0],cond[1]);
   waterTemp = floatFromTwoRegister(true,cond[2],cond[3]);
   
@@ -298,7 +233,7 @@ void ReadAllSensors(){
   delay(DELAY_BTW_SENSOR);
 
   if(isOxygenSensorReady){
-    oxy    = mm.Function3(OXYGEN_SENSOR_DEV_ID,OXYGEN_PPM_REGISTER,1,SENSOR_TIME_OUT);
+    oxy    = mm.readHoldingRegisters(OXYGEN_SENSOR_DEV_ID,OXYGEN_PPM_REGISTER,1,SENSOR_TIME_OUT);
     oxygen = (float)(*oxy)/100;
     #ifdef _MKE_DEBUGGING_
     Serial.print("Oxygen in PPM : ");
@@ -403,6 +338,16 @@ void cb (operationState s) {
       samplerLog("Cancelled");
       break;
   }
+}
+
+void getDeviceConfigurationStruct(){
+  
+}
+void getSamplingTimesStruct(){
+  
+}
+void getSamplingPercentagesStruct(){
+  
 }
 
 

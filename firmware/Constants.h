@@ -39,6 +39,11 @@
 
 #define SENSOR_TIME_OUT 500
 #define DELAY_BTW_SENSOR 50
+
+
+#define WRITE_FUNCTION 0x02
+#define READ_FUNCTION 0x01
+
 struct TimeStruct{
   uint8_t hour;
   uint8_t minute;
