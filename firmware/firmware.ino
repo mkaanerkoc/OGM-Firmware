@@ -8,24 +8,26 @@
 #include "UtilFunctions.h"
 #include "LogFunctions.h"
 #include "MotorFunctions.h"
+#include "SamplerFunctions.h"
 #include "DeviceParams.h"
 
 #include <Adafruit_SleepyDog.h>
 
 
-#define DEVICE_CODE "61-2"
 //#define _MKE_DEBUGGING_ 77
 BluetoothInterface ble;
-TaskScheduler ts;
 ModbusMaster mm;
 mEEPROM eeprom;
-DeviceConfig devConfStr;
 sampleLoader loader;
-SamplerTimeConfig samplerConfStr;
-TimeStruct tStr;
-BME280 mySensor;
-long sysTick=0;
+TaskScheduler ts;
 
+DeviceConfig devConfStr;
+SamplerTimeConfig samplerTimeStr;
+SamplerPercConfig samplerPercStr;
+
+BME280 mySensor;
+long sysTick=0,periodicSamplerTick=0;
+long ReadPeriodInMinutes=0;
 char logBuffer[196];
 char fname[10];
 volatile static uint8_t PROGRAM_STATE = DATA_LOG_STATE;
@@ -44,7 +46,7 @@ void tCallback(uint8_t tid){
 }
 
 
-void bCurrentDatasCallback(byte *params){
+void bCurrentDatasCallback(byte *params,uint16_t len){
   Serial.println("Datalar sorgulandi..");
   ReadAllSensors();
   Serial5.write("X");
@@ -57,7 +59,7 @@ void bCurrentDatasCallback(byte *params){
   Serial5.write("Y");
 }
 
-void bFilesCallback(byte *params){
+void bFilesCallback(byte *params,uint16_t len){
   
   uint8_t msgCode = params[1];
   Serial.println("File Callback Main");
@@ -66,9 +68,11 @@ void bFilesCallback(byte *params){
     char fn[16];
     sprintf(fn,"%c%c%c%c%c%c%c%c%c%c%c",params[2],params[3],params[4],params[5],params[6],params[7],params[8],params[9],params[10],params[11],params[12]);
     Serial.println(fn);
+    Watchdog.disable();
     PROGRAM_STATE = FILE_TRANSFER_STATE;
     sendFileViaBluetooth("data",fn);
     PROGRAM_STATE = DATA_LOG_STATE;
+    Watchdog.enable(1200000);
     //sendFileViaBluetooth("data","test.txt");
   }
   else if(msgCode==0x21){
@@ -85,25 +89,28 @@ void bFilesCallback(byte *params){
   }
   
 }
-void bMotorTestCallback(byte *params){
+void bMotorTestCallback(byte *params,uint16_t len){
   Serial.println("Motor Test Callback");
   handleMotorCommand(params);
   
 }
-void bDevStatCallback(byte *params){
-  
-  
-}
-void bDevConfCallback(byte* params){
+
+void bDevConfCallback(byte* params,uint16_t len){
   Serial.println("Device Configuration Callback");
-  handleDeviceParamsCommand(params);
+  handleDeviceParamsCommand(params,eeprom,len,&devConfStr,&samplerTimeStr,&samplerPercStr);
   
 }
-void bCalibsCallback(byte* params){
+
+void bDevStatCallback(byte *params,uint16_t len){
+  
+  
+}
+
+void bCalibsCallback(byte* params,uint16_t len){
  
   
 }
-void bSamplerCallback(byte* params){
+void bSamplerCallback(byte* params,uint16_t len){
   Serial.println("sampling command");
   uint8_t newState = params[1];
   if(newState = 0x01){
@@ -116,7 +123,7 @@ void bSamplerCallback(byte* params){
   }
   
 }
-void bProgramStateCallback(byte *params){
+void bProgramStateCallback(byte *params,uint16_t len){
   uint8_t newState = params[1];
   
   
@@ -124,7 +131,7 @@ void bProgramStateCallback(byte *params){
 
 void setup() {
   // put your setup code here, to run once:
-  //setSyncProvider(getTeensy3Time);
+  setSyncProvider(getTeensy3Time);
   Serial.begin(115200);
   //while(!Serial);
   
@@ -136,7 +143,8 @@ void setup() {
   eeprom.enable(36,39);
   loader.begin();
   loader.registerCallback(&cb);
-  
+
+  //ADD BLUETOOTH COMMAND CALLBACKS//
   ble.setCallback(DEVICE_CONF_CALLBACK,&bDevConfCallback);
   ble.setCallback(CALIBRATION_CALLBACK,&bCalibsCallback);
   ble.setCallback(FILE_CALLBACK,&bFilesCallback);
@@ -144,11 +152,21 @@ void setup() {
   ble.setCallback(SAMPLER_CALLBACK,&bSamplerCallback);
   ble.setCallback(MOTOR_TEST_CALLBACK,&bMotorTestCallback);
   
-  digitalClockDisplay();
+  //GET PERMENANT DATAS//
+  eeprom.readSamplerTimeStruct(&samplerTimeStr);
+  eeprom.readConfigStruct(&devConfStr);
+  ReadPeriodInMinutes = devConfStr.readPeriod*60000;
+
+
+  
+  //digitalClockDisplay();
   //Serial1.flush();
+  PROGRAM_STATE = DATA_LOG_STATE;
   logAtBoot();
   mm.clearBus();
   sysTick=millis();
+  periodicSamplerTick=millis();
+  Watchdog.enable(1200000);
 }
 
 void loop() {
@@ -157,11 +175,17 @@ void loop() {
   switch(PROGRAM_STATE){
     case DATA_LOG_STATE:
       ble.receive();
-      if(millis()>sysTick+SYSTICK_TIMER*60){
+      if(millis()>sysTick+(ReadPeriodInMinutes)){
         sysTick=millis();  
         ReadAllSensors();
         sprintf(fname,"%02d-%02d-%02d.da",day(),month(),(year()%2000));
         writeToFile("data",fname,logBuffer);
+        digitalClockDisplay();
+      }
+      if(millis()>periodicSamplerTick+50000){
+        periodicSamplerTick = millis();
+        checkForPeriodicSampling();
+        Watchdog.reset();
       }
       break;
     case SAMPLING_STATE:
@@ -254,7 +278,7 @@ void ReadAllSensors(){
   Serial.println("");
   #endif
   
-  sprintf(logBuffer, "%s;%02d:%02d:%02d;%.2f;%.2f;%.2f;%.2f;%d;%.2f;%.2f;%.2f;%.2f;%d",DEVICE_CODE,hour(),minute(),second(),tempC,humdC,pH,oxygen,dist,calculateFlowFromHeight(620,dist),turbidity,conductivity,waterTemp,0);
+  sprintf(logBuffer, "%d-%d;%02d:%02d:%02d;%.2f;%.2f;%.2f;%.2f;%d;%.2f;%.2f;%.2f;%.2f;%d",devConfStr.fieldID,devConfStr.deviceID,hour(),minute(),second(),tempC,humdC,pH,oxygen,dist,calculateFlowFromHeight(620,dist),turbidity,conductivity,waterTemp,0);
   #ifdef _MKE_DEBUGGING_
   Serial.println(logBuffer);
   #endif
@@ -271,6 +295,38 @@ void setBME280Sensor(){
   mySensor.settings.pressOverSample = 1;
   mySensor.settings.humidOverSample = 1;
   mySensor.begin();
+}
+
+
+
+void getDeviceConfigurationStruct(){
+  
+}
+void getSamplingTimesStruct(){
+  
+}
+void getSamplingPercentagesStruct(){
+  
+}
+
+void checkForPeriodicSampling(){
+  uint8_t weekDay1 = weekday();
+  weekDay1 = CIRCULAR_RETURN(weekDay1);
+  uint8_t hour1 = hour();
+  uint8_t minute1 = minute();
+  Serial.printf("WeekDay : %d , Hour : %d , Minute : %d \n",weekDay1,hour1,minute1);
+  Serial.printf("Alarm 1 : WeekDay : %d , Hour : %d , Minute : %d \n",samplerTimeStr.weekDay1,samplerTimeStr.hour1,samplerTimeStr.minute1);
+  Serial.printf("Alarm 2 : WeekDay : %d , Hour : %d , Minute : %d \n",samplerTimeStr.weekDay2,samplerTimeStr.hour2,samplerTimeStr.minute2);
+  if ((samplerTimeStr.weekDay1 == weekDay1) && (samplerTimeStr.hour1 == hour1) && ((minute1 >= samplerTimeStr.minute1) && (minute1 < (samplerTimeStr.minute1 + 3)))) {
+      loader.startSampleLoading(sampleLoadingReasonPeriodic);
+  }
+  if ((samplerTimeStr.weekDay2 == weekDay1) && (samplerTimeStr.hour2 == hour1) && ((minute1 >= samplerTimeStr.minute2) && (minute1 < (samplerTimeStr.minute2 + 3)))) {
+      loader.startSampleLoading(sampleLoadingReasonPeriodic);
+  }
+}
+
+void checkForEventSampling(){
+  
 }
 
 void cb (operationState s) {
@@ -338,16 +394,6 @@ void cb (operationState s) {
       samplerLog("Cancelled");
       break;
   }
-}
-
-void getDeviceConfigurationStruct(){
-  
-}
-void getSamplingTimesStruct(){
-  
-}
-void getSamplingPercentagesStruct(){
-  
 }
 
 

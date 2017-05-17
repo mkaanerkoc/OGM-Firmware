@@ -80,7 +80,7 @@ void readFromFile(const char *dir,const char* filename){
 }
 
 void sendFileViaBluetooth(const char *dir,const char* filename){
-  delay(200);
+  delay(1000);
   volatile uint32_t i=0;
   char fileName[32];
   if(!SD.exists(dir)){
@@ -140,4 +140,6 @@ void samplerLog(const char *log_){
   sprintf(logRow,"%s at : %02d:%02d:%02d",log_,hour(),minute(),second());
   writeToFile("sampler",fileName,logRow);
 }
+
+
 

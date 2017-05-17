@@ -33,7 +33,7 @@ void handleMotorCommand(byte *params){
   uint8_t motorID = params[1];
   uint8_t directionCommand = params[2];
   uint8_t turnOnOff = params[3];
-  switch motorID{
+  switch (motorID){
     case RELAY_ID:
       if(directionCommand==TURN_INSIDE){
         if(turnOnOff == TURN_ON){
@@ -43,7 +43,7 @@ void handleMotorCommand(byte *params){
           digitalWrite(RELAY_PIN, LOW);
         }
       }
-      else if(directionCommand==TURN_OUTSITE){
+      else if(directionCommand==TURN_OUTSIDE){
         if(turnOnOff == TURN_ON){
           digitalWrite(RELAY_PIN, HIGH);
         }
@@ -69,7 +69,7 @@ void handleMotorCommand(byte *params){
             digitalWrite(PUMP_1_PIN,LOW);
           }
         }
-        else if(directionCommand==TURN_OUTSITE){
+        else if(directionCommand==TURN_OUTSIDE){
           if(turnOnOff == TURN_ON){
             digitalWrite(DIRECTIONAL_PIN_A0,HIGH);
             delay(10);
@@ -103,7 +103,7 @@ void handleMotorCommand(byte *params){
           digitalWrite(PUMP_2_PIN,LOW);
         }
       }
-      else if(directionCommand==TURN_OUTSITE){
+      else if(directionCommand==TURN_OUTSIDE){
         if(turnOnOff == TURN_ON){
           digitalWrite(DIRECTIONAL_PIN_C0,HIGH);
           delay(10);
@@ -137,7 +137,7 @@ void handleMotorCommand(byte *params){
           digitalWrite(PUMP_3_PIN,LOW);
         }
       }
-      else if(directionCommand==TURN_OUTSITE){
+      else if(directionCommand==TURN_OUTSIDE){
         if(turnOnOff == TURN_ON){
           digitalWrite(DIRECTIONAL_PIN_A1,HIGH);
           delay(10);
@@ -171,7 +171,7 @@ void handleMotorCommand(byte *params){
             digitalWrite(PUMP_4_PIN,LOW);
         }
       }
-      else if(directionCommand==TURN_OUTSITE){
+      else if(directionCommand==TURN_OUTSIDE){
         if(turnOnOff == TURN_ON){
           digitalWrite(DIRECTIONAL_PIN_C1,HIGH);
           delay(10);

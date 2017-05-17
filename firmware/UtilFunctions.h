@@ -1,3 +1,5 @@
+#define CIRCULAR_RETURN(A) (A==1)?(7):(A-1)
+
 float calculateFlowFromHeight(uint16_t ref_height,uint16_t distance){
   
   float diff_cm =  ((float)(ref_height - distance)) / 10;

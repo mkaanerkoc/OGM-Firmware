@@ -86,178 +86,221 @@
 #define DATETIME_PARAMS  0x20
 #define SAMPLING_PERC_PARAMS 0x30
 
-#define WRITE_FUNCTION 
-#define READ_FUNCTION
+#define WRITE_FUNCTION 0x02
+#define READ_FUNCTION 0x01
 
 #define ALL_PARAMS 0x00
 #define SINGLE_PARAMS 0x01
 
 
-void handleDeviceParamsCommand(byte *params){
+void handleDeviceParamsCommand(byte *params,mEEPROM eeprom,uint16_t msgLen,DeviceConfig *dvc,SamplerTimeConfig *stc,SamplerPercConfig *spc){
 
+  uint8_t messageLength = msgLen;
   uint8_t typeCode = params[1];
   uint8_t msgCode,funcCode,paramCode;
   char configBuffer[24];  
-  SamplerTimeConfig samplerConfStr;
-  DeviceConfig devConfStr;
+  char devParamBuffer[160];
+  char singleParamBuffer[8];
+  float fParam;
+  uint16_t u16Param;
+  uint8_t u8Param;
+  //SamplerTimeConfig (*stc);
+  //DeviceConfig (*dvc);
   
-  switch typeCode{
+  switch (typeCode){
     case CONFIG_PARAMS:
       msgCode = params[2];
       funcCode = params[3];
       if(msgCode == ALL_PARAMS){
         if(funcCode == READ_FUNCTION){
-          
+           eeprom.readConfigStruct(dvc);
+           sprintf(devParamBuffer,"%d;%d;%2.2f;%2.2f;%2.2f;%2.2f;%2.2f;%2.2f;%2.2f;%2.2f;%2.2f;%d;%d;%d;%d;%d;%d;%d",(*dvc).deviceID,(*dvc).fieldID,(*dvc).phLowThr,(*dvc).phHighThr,(*dvc).conductivityLowThr,(*dvc).conductivityHighThr,
+              (*dvc).turbidityLowThr,(*dvc).turbidityHighThr,(*dvc).oxygenLowThr,(*dvc).oxygenHighThr,(*dvc).rainHighThr,(*dvc).eventTimeOut,(*dvc).timeBasedWaterSamplingTime,(*dvc).eventBasedWaterSamplingTime,(*dvc).timeBasedAcideSamplingTime,
+              (*dvc).eventBasedAcideSamplingTime,(*dvc).readPeriod,(*dvc).notchHeight);
+            Serial5.print("X");
+            delay(100);
+            for(int i = 0 ; i < strlen(devParamBuffer);i++){
+              Serial5.write(devParamBuffer[i]);
+            }
+            delay(100);
+            Serial5.print("Y");
+            return;
         }
-        else(funcCode == WRITE_FUNCTION){
+        else if(funcCode == WRITE_FUNCTION){
           
         }
       }
-      else(msgCode==SINGLE_PARAMS){
-        else if(paramCode==DEVICE_ID_REQ)
+      else if(msgCode==SINGLE_PARAMS){
+        
+        paramCode = params[3];
+        funcCode = params[4];
+        eeprom.readConfigStruct(dvc);
+        sprintf(singleParamBuffer,"%.*s", (messageLength-5), params + 5);
+        Serial.println(singleParamBuffer);
+        if(paramCode==DEVICE_ID_REQ)
         {
-          if(fCode==READ_FUNCTION){
+          if(funcCode==READ_FUNCTION){
             
           }
-          else if(fCode==WRITE_FUNCTION){
-            
+          else if(funcCode==WRITE_FUNCTION){
+            // GET THE PARAMETER STRING MANUALLY //
+            u8Param = atoi(singleParamBuffer);
+            (*dvc).deviceID = u8Param;
           }
         }
-        else if(paramCode==FIELD_ID_REQ)
+        else if(paramCode==SITE_ID_REQ)
         {
-          if(fCode==READ_FUNCTION){
+          if(funcCode==READ_FUNCTION){
             
           }
-          else if(fCode==WRITE_FUNCTION){
-            
+          else if(funcCode==WRITE_FUNCTION){
+            u8Param = atoi(singleParamBuffer);
+            (*dvc).fieldID = u8Param;
           }
         }
         else if(paramCode==PH_LOWER_REQ)
         {
-          if(fCode==READ_FUNCTION){
+          if(funcCode==READ_FUNCTION){
             
           }
-          else if(fCode==WRITE_FUNCTION){
-            
+          else if(funcCode==WRITE_FUNCTION){
+            fParam = atof(singleParamBuffer);
+            (*dvc).phLowThr = fParam;
           }
         }
         else if(paramCode==PH_HIGHER_REQ)
         {
-          if(fCode==READ_FUNCTION){
+          if(funcCode==READ_FUNCTION){
             
           }
-          else if(fCode==WRITE_FUNCTION){
-            
+          else if(funcCode==WRITE_FUNCTION){
+            fParam = atof(singleParamBuffer);
+            (*dvc).phHighThr = fParam;
           }
         }
         else if(paramCode==CONDUCTIVITY_LOWER_REQ)
         {
-          if(fCode==READ_FUNCTION){
+          if(funcCode==READ_FUNCTION){
             
           }
-          else if(fCode==WRITE_FUNCTION){
+          else if(funcCode==WRITE_FUNCTION){
             
+            fParam = atof(singleParamBuffer);
+            (*dvc).conductivityLowThr = fParam;
           }
         }
         else if(paramCode==CONDUCTIVITY_HIGHER_REQ)
         {
-          if(fCode==READ_FUNCTION){
+          if(funcCode==READ_FUNCTION){
             
           }
-          else if(fCode==WRITE_FUNCTION){
-            
+          else if(funcCode==WRITE_FUNCTION){
+            fParam = atof(singleParamBuffer);
+            (*dvc).conductivityHighThr = fParam;
           }
         }
         else if(paramCode==TURBIDITY_LOWER_REQ)
         {
-          if(fCode==READ_FUNCTION){
+          if(funcCode==READ_FUNCTION){
             
           }
-          else if(fCode==WRITE_FUNCTION){
-            
+          else if(funcCode==WRITE_FUNCTION){
+            fParam = atof(singleParamBuffer);
+            (*dvc).turbidityLowThr = fParam;
           }
         }
         else if(paramCode==TURBIDITY_HIGHER_REQ)
         {
-          if(fCode==READ_FUNCTION){
+          if(funcCode==READ_FUNCTION){
             
           }
-          else if(fCode==WRITE_FUNCTION){
-            
+          else if(funcCode==WRITE_FUNCTION){
+            fParam = atof(singleParamBuffer);
+            (*dvc).turbidityHighThr = fParam;
           }
         }
         else if(paramCode==OXYGEN_LOWER_REQ)
         {
-          if(fCode==READ_FUNCTION){
+          if(funcCode==READ_FUNCTION){
             
           }
-          else if(fCode==WRITE_FUNCTION){
-            
+          else if(funcCode==WRITE_FUNCTION){
+            fParam = atof(singleParamBuffer);
+            (*dvc).oxygenLowThr = fParam;
           }
         }
         else if(paramCode==OXYGEN_HIGHER_REQ)
         {
-          if(fCode==READ_FUNCTION){
+          if(funcCode==READ_FUNCTION){
             
           }
-          else if(fCode==WRITE_FUNCTION){
-            
+          else if(funcCode==WRITE_FUNCTION){
+             fParam = atof(singleParamBuffer);
+             (*dvc).oxygenHighThr = fParam;
           }
         }
         else if(paramCode==RAIN_HIGHER_REQ)
         {
-          if(fCode==READ_FUNCTION){
+          if(funcCode==READ_FUNCTION){
             
           }
-          else if(fCode==WRITE_FUNCTION){
-            
+          else if(funcCode==WRITE_FUNCTION){
+            fParam = atof(singleParamBuffer);
+            (*dvc).rainHighThr = fParam;
           }
         }
         else if(paramCode==TIMEOUT_EVENT_REQ)
         {
-          if(fCode==READ_FUNCTION){
+          if(funcCode==READ_FUNCTION){
             
           }
-          else if(fCode==WRITE_FUNCTION){
-            
+          else if(funcCode==WRITE_FUNCTION){
+            u16Param = atoi(singleParamBuffer);
+            (*dvc).eventTimeOut = u16Param;
           }
         }
         else if(paramCode==REFERENCE_HEIGHT_REQ)
         {
-          if(fCode==READ_FUNCTION){
+          if(funcCode==READ_FUNCTION){
             
           }
-          else if(fCode==WRITE_FUNCTION){
-            
+          else if(funcCode==WRITE_FUNCTION){
+            u16Param = atoi(singleParamBuffer);
+            (*dvc).notchHeight = u16Param;
           }
         }
         else if(paramCode==READ_PERIOD_REQ)
         {
-          if(fCode==READ_FUNCTION){
+          if(funcCode==READ_FUNCTION){
             
           }
-          else if(fCode==WRITE_FUNCTION){
-            
+          else if(funcCode==WRITE_FUNCTION){
+            u8Param = atoi(singleParamBuffer);
+            (*dvc).readPeriod = u8Param;
           }
         }
-        
       }
+      eeprom.writeConfigStruct((*dvc));
+      Serial5.print("OK");
       break;
     case SAMPLING_TIME_PARAMS:
-      if(fCode==0x02){
+      funcCode = params[2];
+      
+      if(funcCode==WRITE_FUNCTION){
         Serial.println("Write Sampling Times");
-        samplerConfStr.weekDay1 = params[3];
-        samplerConfStr.hour1 = params[4];
-        samplerConfStr.minute1 = params[5];
-        samplerConfStr.weekDay2 = params[6];
-        samplerConfStr.hour2 = params[7];
-        samplerConfStr.minute2 = params[8];
-        eeprom.writeSamplerTimeStruct(samplerConfStr);
+        (*stc).weekDay1 = params[3];
+        (*stc).hour1 = params[4];
+        (*stc).minute1 = params[5];
+        (*stc).weekDay2 = params[6];
+        (*stc).hour2 = params[7];
+        (*stc).minute2 = params[8];
+        eeprom.writeSamplerTimeStruct((*stc));
         Serial5.print("OK");
      }
-     else if(fCode==0x01){
-       eeprom.readSamplerTimeStruct(&samplerConfStr);
-       sprintf(configBuffer,"%d;%d;%d;%d;%d;%d",samplerConfStr.weekDay1,samplerConfStr.hour1,samplerConfStr.minute1,samplerConfStr.weekDay2,samplerConfStr.hour2,samplerConfStr.minute2);
+     else if(funcCode==READ_FUNCTION){
+       Serial.println("Read Sampling Times");
+       eeprom.readSamplerTimeStruct(stc);
+       sprintf(configBuffer,"%d;%d;%d;%d;%d;%d",(*stc).weekDay1,(*stc).hour1,(*stc).minute1,(*stc).weekDay2,(*stc).hour2,(*stc).minute2);
        Serial5.print("X");
        delay(100);
        for(int i = 0 ; i < strlen(configBuffer);i++){
@@ -268,15 +311,51 @@ void handleDeviceParamsCommand(byte *params){
      }
       break;
     case SAMPLING_PERC_PARAMS:
-      
+      funcCode = params[2];
+      msgCode = params[3];
+      eeprom.readSamplerPercStruct(spc);
+      if(funcCode == 0x01){
+        if(msgCode==READ_FUNCTION){
+          sprintf(configBuffer,"X%d;%d;%dY",(*spc).periodicTotal,(*spc).periodicWater,(*spc).periodicAcide);
+          for(int i = 0 ; i < strlen(configBuffer);i++){
+              Serial5.write(configBuffer[i]);
+          }
+        }
+        else if(msgCode == WRITE_FUNCTION){
+          uint16_t pTotal = (params[4]<<8)|(params[5]);
+          uint16_t pWater = (params[6]<<8)|(params[7]);
+          (*spc).periodicTotal = pTotal;
+          (*spc).periodicWater = pWater;
+          (*spc).periodicAcide = pTotal - pWater;
+          eeprom.writeSamplerPercStruct((*spc));
+          Serial5.print("OK");
+        }
+      }
+      else if(funcCode == 0x02){
+        if(msgCode==READ_FUNCTION){
+          sprintf(configBuffer,"X%d;%d;%dY",(*spc).eventTotal,(*spc).eventWater,(*spc).eventAcide);
+          for(int i = 0 ; i < strlen(configBuffer);i++){
+              Serial5.write(configBuffer[i]);
+          }
+        }
+        else if(msgCode == WRITE_FUNCTION){
+          uint16_t eTotal = (params[4]<<8)|(params[5]);
+          uint16_t eWater = (params[6]<<8)|(params[7]);
+          (*spc).eventTotal = eTotal;
+          (*spc).eventWater = eWater;
+          (*spc).eventAcide = eTotal - eWater;
+          eeprom.writeSamplerPercStruct((*spc));
+          Serial5.print("OK");
+        }
+      }
       break;
     case DATETIME_PARAMS:
       funcCode = params[2];
-      if(funcCode == READ_FUNCTION){
+      if(funcCode == WRITE_FUNCTION){
         setTime(params[3],params[4],params[5],params[6],params[7],params[8]);
         Serial5.print("OK");
       }
-      else if(funcCode == WRITE_FUNCTION){
+      else if(funcCode == READ_FUNCTION){
         sprintf(configBuffer,"X%02d:%02d:%02d %02d-%02d-%dY",hour(),minute(),second(),day(),month(),year());
         for(int i = 0 ; i < strlen(configBuffer);i++){
             Serial5.write(configBuffer[i]);
