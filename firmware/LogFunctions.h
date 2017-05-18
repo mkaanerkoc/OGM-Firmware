@@ -141,5 +141,55 @@ void samplerLog(const char *log_){
   writeToFile("sampler",fileName,logRow);
 }
 
+void getLastDataFile(){
+  File dir = SD.open("data");
+  File lastFile;
+  char lastFileName[24];
+  while(true){
+     File entry =  dir.openNextFile();
+     if (! entry) {
+       // no more files
+       Serial.printf("Last File Name : %s\n",lastFile.name());
+       break;
+     }
+     lastFile = entry;
+     
+  }
+}
+
+void getLastRowsFromFile(uint8_t rowCount){
+  File dir = SD.open("data");
+  File lastFile;
+  char lastFileName[24];
+  while(true){
+     File entry =  dir.openNextFile();
+     if (! entry) {
+       // no more files
+       Serial.printf("Last File Name : %s\n",lastFile.name());
+       // BURAYI DOLDUR AGA//
+       if(lastFile.size()<65*(rowCount+1)){
+        while(lastFile.available()){
+          char c = lastFile.read();
+          Serial.print(c);
+        }
+       }
+       else{
+        lastFile.seek(lastFile.size()-65*(rowCount+1));
+        lastFile.readStringUntil('\n');
+        while(lastFile.available()){
+          char c = lastFile.read();
+          Serial.print(c);
+        }
+       }
+       
+
+       
+       return;
+     }
+     lastFile = entry;
+     
+  }
+}
+
 
 

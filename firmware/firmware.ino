@@ -73,7 +73,6 @@ void bFilesCallback(byte *params,uint16_t len){
     sendFileViaBluetooth("data",fn);
     PROGRAM_STATE = DATA_LOG_STATE;
     Watchdog.enable(1200000);
-    //sendFileViaBluetooth("data","test.txt");
   }
   else if(msgCode==0x21){
     
@@ -90,15 +89,11 @@ void bFilesCallback(byte *params,uint16_t len){
   
 }
 void bMotorTestCallback(byte *params,uint16_t len){
-  Serial.println("Motor Test Callback");
-  handleMotorCommand(params);
-  
+  handleMotorCommand(params); 
 }
 
 void bDevConfCallback(byte* params,uint16_t len){
-  Serial.println("Device Configuration Callback");
   handleDeviceParamsCommand(params,eeprom,len,&devConfStr,&samplerTimeStr,&samplerPercStr);
-  
 }
 
 void bDevStatCallback(byte *params,uint16_t len){
@@ -107,7 +102,7 @@ void bDevStatCallback(byte *params,uint16_t len){
 }
 
 void bCalibsCallback(byte* params,uint16_t len){
- 
+ handleCalibrationCommands(params,len,mm);
   
 }
 void bSamplerCallback(byte* params,uint16_t len){
@@ -133,7 +128,8 @@ void setup() {
   // put your setup code here, to run once:
   setSyncProvider(getTeensy3Time);
   Serial.begin(115200);
-  //while(!Serial);
+  
+  while(!Serial);
   
   mm.config(9600);
   ble.config(115200);
@@ -158,21 +154,21 @@ void setup() {
   ReadPeriodInMinutes = devConfStr.readPeriod*60000;
 
 
-  
-  //digitalClockDisplay();
-  //Serial1.flush();
   PROGRAM_STATE = DATA_LOG_STATE;
   logAtBoot();
   mm.clearBus();
   sysTick=millis();
   periodicSamplerTick=millis();
-  Watchdog.enable(1200000);
+  //Watchdog.enable(1200000);
+  //writeToFile("data","04-05-17.da","selamin aleykum...");
+  getLastDataFile();
+  getLastRowsFromFile(1);
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
- 
-  switch(PROGRAM_STATE){
+  
+  /*switch(PROGRAM_STATE){
     case DATA_LOG_STATE:
       ble.receive();
       if(millis()>sysTick+(ReadPeriodInMinutes)){
@@ -191,17 +187,13 @@ void loop() {
     case SAMPLING_STATE:
       ble.receive();
       loader.operationHandler();
+    case CALIBRATION_STATE:
+      handleCalibration();
+      ble.receive();
     default:
       break;
-  }
-  //TEST//
- /* if(millis()>sysTick+SYSTICK_TIMER*20){
-        sysTick=millis();  
-        ReadAllSensors();
-        sprintf(fname,"%02d-%02d-%02d.da",day(),month(),(year()%2000));
-        writeToFile("data",fname,logBuffer);
   }*/
-
+  //TEST//
   
  
 
@@ -278,7 +270,7 @@ void ReadAllSensors(){
   Serial.println("");
   #endif
   
-  sprintf(logBuffer, "%d-%d;%02d:%02d:%02d;%.2f;%.2f;%.2f;%.2f;%d;%.2f;%.2f;%.2f;%.2f;%d",devConfStr.fieldID,devConfStr.deviceID,hour(),minute(),second(),tempC,humdC,pH,oxygen,dist,calculateFlowFromHeight(620,dist),turbidity,conductivity,waterTemp,0);
+  sprintf(logBuffer, "%d-%d;%02d:%02d:%02d;%.2f;%.2f;%.2f;%.2f;%d;%.2f;%.2f;%.2f;%.2f;%d",devConfStr.fieldID,devConfStr.deviceID,hour(),minute(),second(),tempC,humdC,pH,oxygen,dist,calculateFlowFromHeight(devConfStr.notchHeight,dist),turbidity,conductivity,waterTemp,0);
   #ifdef _MKE_DEBUGGING_
   Serial.println(logBuffer);
   #endif
@@ -314,9 +306,9 @@ void checkForPeriodicSampling(){
   weekDay1 = CIRCULAR_RETURN(weekDay1);
   uint8_t hour1 = hour();
   uint8_t minute1 = minute();
-  Serial.printf("WeekDay : %d , Hour : %d , Minute : %d \n",weekDay1,hour1,minute1);
+  /*Serial.printf("WeekDay : %d , Hour : %d , Minute : %d \n",weekDay1,hour1,minute1);
   Serial.printf("Alarm 1 : WeekDay : %d , Hour : %d , Minute : %d \n",samplerTimeStr.weekDay1,samplerTimeStr.hour1,samplerTimeStr.minute1);
-  Serial.printf("Alarm 2 : WeekDay : %d , Hour : %d , Minute : %d \n",samplerTimeStr.weekDay2,samplerTimeStr.hour2,samplerTimeStr.minute2);
+  Serial.printf("Alarm 2 : WeekDay : %d , Hour : %d , Minute : %d \n",samplerTimeStr.weekDay2,samplerTimeStr.hour2,samplerTimeStr.minute2);*/
   if ((samplerTimeStr.weekDay1 == weekDay1) && (samplerTimeStr.hour1 == hour1) && ((minute1 >= samplerTimeStr.minute1) && (minute1 < (samplerTimeStr.minute1 + 3)))) {
       loader.startSampleLoading(sampleLoadingReasonPeriodic);
   }

@@ -315,8 +315,11 @@ void handleDeviceParamsCommand(byte *params,mEEPROM eeprom,uint16_t msgLen,Devic
       msgCode = params[3];
       eeprom.readSamplerPercStruct(spc);
       if(funcCode == 0x01){
+        Serial.println("Sampling perc periodic");
         if(msgCode==READ_FUNCTION){
-          sprintf(configBuffer,"X%d;%d;%dY",(*spc).periodicTotal,(*spc).periodicWater,(*spc).periodicAcide);
+          Serial5.write("X");
+          delay(50);
+          sprintf(configBuffer,"%d;%d;%dY",(*spc).periodicTotal,(*spc).periodicWater,(*spc).periodicAcide);
           for(int i = 0 ; i < strlen(configBuffer);i++){
               Serial5.write(configBuffer[i]);
           }
@@ -332,8 +335,11 @@ void handleDeviceParamsCommand(byte *params,mEEPROM eeprom,uint16_t msgLen,Devic
         }
       }
       else if(funcCode == 0x02){
+        Serial.println("Sampling perc event");
         if(msgCode==READ_FUNCTION){
-          sprintf(configBuffer,"X%d;%d;%dY",(*spc).eventTotal,(*spc).eventWater,(*spc).eventAcide);
+          Serial5.write("X");
+          delay(50);
+          sprintf(configBuffer,"%d;%d;%dY",(*spc).eventTotal,(*spc).eventWater,(*spc).eventAcide);
           for(int i = 0 ; i < strlen(configBuffer);i++){
               Serial5.write(configBuffer[i]);
           }
