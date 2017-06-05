@@ -176,10 +176,12 @@ void getLastRowsFromFile(uint8_t rowCount){
        else{
         lastFile.seek(lastFile.size()-65*(rowCount+1));
         lastFile.readStringUntil('\n');
+        Serial5.print("X");
         while(lastFile.available()){
           char c = lastFile.read();
-          Serial.print(c);
+          Serial5.write(c);
         }
+        Serial5.print("Y");
        }
        
 

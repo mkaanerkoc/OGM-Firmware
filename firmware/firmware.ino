@@ -129,7 +129,7 @@ void setup() {
   setSyncProvider(getTeensy3Time);
   Serial.begin(115200);
   
-  while(!Serial);
+  //while(!Serial);
   
   mm.config(9600);
   ble.config(115200);
@@ -159,16 +159,16 @@ void setup() {
   mm.clearBus();
   sysTick=millis();
   periodicSamplerTick=millis();
-  //Watchdog.enable(1200000);
+  Watchdog.enable(1200000);
   //writeToFile("data","04-05-17.da","selamin aleykum...");
-  getLastDataFile();
-  getLastRowsFromFile(1);
+  //getLastDataFile();
+  //getLastRowsFromFile(1);
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
   
-  /*switch(PROGRAM_STATE){
+  switch(PROGRAM_STATE){
     case DATA_LOG_STATE:
       ble.receive();
       if(millis()>sysTick+(ReadPeriodInMinutes)){
@@ -192,12 +192,8 @@ void loop() {
       ble.receive();
     default:
       break;
-  }*/
+  }
   //TEST//
-  
- 
-
-  
 }
 
 void ReadAllSensors(){
