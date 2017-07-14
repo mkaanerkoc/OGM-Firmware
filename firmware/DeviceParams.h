@@ -119,7 +119,7 @@ void handleDeviceParamsCommand(byte *params,mEEPROM eeprom,uint16_t msgLen,Devic
               (*dvc).eventBasedAcideSamplingTime,(*dvc).readPeriod,(*dvc).notchHeight);
             Serial5.print("X");
             delay(100);
-            for(int i = 0 ; i < strlen(devParamBuffer);i++){
+            for(unsigned int i = 0 ; i < strlen(devParamBuffer);i++){
               Serial5.write(devParamBuffer[i]);
             }
             delay(100);
@@ -303,7 +303,7 @@ void handleDeviceParamsCommand(byte *params,mEEPROM eeprom,uint16_t msgLen,Devic
        sprintf(configBuffer,"%d;%d;%d;%d;%d;%d",(*stc).weekDay1,(*stc).hour1,(*stc).minute1,(*stc).weekDay2,(*stc).hour2,(*stc).minute2);
        Serial5.print("X");
        delay(100);
-       for(int i = 0 ; i < strlen(configBuffer);i++){
+       for(unsigned int i = 0 ; i < strlen(configBuffer);i++){
           Serial5.write(configBuffer[i]);
        }
        delay(100);
@@ -320,7 +320,7 @@ void handleDeviceParamsCommand(byte *params,mEEPROM eeprom,uint16_t msgLen,Devic
           Serial5.write("X");
           delay(50);
           sprintf(configBuffer,"%d;%d;%dY",(*spc).periodicTotal,(*spc).periodicWater,(*spc).periodicAcide);
-          for(int i = 0 ; i < strlen(configBuffer);i++){
+          for(unsigned int i = 0 ; i < strlen(configBuffer);i++){
               Serial5.write(configBuffer[i]);
           }
         }
@@ -340,7 +340,7 @@ void handleDeviceParamsCommand(byte *params,mEEPROM eeprom,uint16_t msgLen,Devic
           Serial5.write("X");
           delay(50);
           sprintf(configBuffer,"%d;%d;%dY",(*spc).eventTotal,(*spc).eventWater,(*spc).eventAcide);
-          for(int i = 0 ; i < strlen(configBuffer);i++){
+          for(unsigned int i = 0 ; i < strlen(configBuffer);i++){
               Serial5.write(configBuffer[i]);
           }
         }
@@ -359,11 +359,11 @@ void handleDeviceParamsCommand(byte *params,mEEPROM eeprom,uint16_t msgLen,Devic
       funcCode = params[2];
       if(funcCode == WRITE_FUNCTION){
         setTime(params[3],params[4],params[5],params[6],params[7],params[8]);
-        Serial5.print("OK");
+        Serial5.print("OK Time");
       }
       else if(funcCode == READ_FUNCTION){
         sprintf(configBuffer,"X%02d:%02d:%02d %02d-%02d-%dY",hour(),minute(),second(),day(),month(),year());
-        for(int i = 0 ; i < strlen(configBuffer);i++){
+        for(unsigned int i = 0 ; i < strlen(configBuffer);i++){
             Serial5.write(configBuffer[i]);
         }
       }

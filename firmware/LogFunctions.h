@@ -10,11 +10,11 @@ uint8_t initSDCard(){
 uint8_t WriteDataLog(uint8_t _day,uint8_t _month,uint8_t _year,char *buf){
   uint8_t b = 0;
   char fileName[12];
-  sprintf(fileName,"02d-%02d-%02d",_day,_month,_year%2000);
+  sprintf(fileName,"%02d-%02d-%02d",_day,_month,_year%2000);
   myFile = SD.open("test.txt", FILE_WRITE);
   if (myFile) {
     Serial.print("Writing to test.txt...");
-    uint8_t b = myFile.println(buf);
+    myFile.println(buf);
     myFile.close();
     Serial.println("done.");
   }
@@ -81,7 +81,7 @@ void readFromFile(const char *dir,const char* filename){
 
 void sendFileViaBluetooth(const char *dir,const char* filename){
   delay(1000);
-  volatile uint32_t i=0;
+  //volatile uint32_t i=0;
   char fileName[32];
   if(!SD.exists(dir)){
     return;
@@ -102,9 +102,7 @@ void sendFileViaBluetooth(const char *dir,const char* filename){
   }
   else{
     Serial5.print("qwe");
-  }
-  
-}
+  }}
 
 void sendFileNamesViaBluetooth(const char *dirr){
   File dir = SD.open(dirr);
@@ -167,7 +165,7 @@ void getLastRowsFromFile(uint8_t rowCount){
        // no more files
        Serial.printf("Last File Name : %s\n",lastFile.name());
        // BURAYI DOLDUR AGA//
-       if(lastFile.size()<65*(rowCount+1)){
+       if(lastFile.size() < unsigned (65*(rowCount+1))){
         while(lastFile.available()){
           char c = lastFile.read();
           Serial.print(c);

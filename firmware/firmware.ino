@@ -13,6 +13,25 @@
 
 #include <Adafruit_SleepyDog.h>
 
+//rain sensor definitions///////////////////////////
+
+#define RAIN_VCC 31
+#define RAIN_SIGNAL 30
+#define RAIN_SENSOR_INTEGRATOR_TRESHOLD 10
+#define RAIN_SENSOR_INTEGRATOR_TRESHOLD_NEGATIVE -10
+
+
+volatile unsigned int cummulativeClick = 0;
+volatile short int rainTimer = 5;
+volatile boolean isRaining = false;
+
+//Rain Sensor Variables//
+volatile unsigned int click;
+volatile int integrator;
+
+void counter();
+/////////////////////////////////////////////////////
+
 
 //#define _MKE_DEBUGGING_ 77
 BluetoothInterface ble;
@@ -28,7 +47,7 @@ SamplerPercConfig samplerPercStr;
 BME280 mySensor;
 long sysTick=0,periodicSamplerTick=0;
 long ReadPeriodInMinutes=0;
-char logBuffer[196];
+char logBuffer[200];
 char fname[10];
 volatile static uint8_t PROGRAM_STATE = DATA_LOG_STATE;
 
@@ -51,7 +70,7 @@ void bCurrentDatasCallback(byte *params,uint16_t len){
   ReadAllSensors();
   Serial5.write("X");
   
-  for(int i = 0 ; i < strlen(logBuffer);i++){
+  for(unsigned int i = 0 ; i < strlen(logBuffer);i++){
     Serial5.write(logBuffer[i]);
     delay(1);
   }
@@ -108,13 +127,13 @@ void bCalibsCallback(byte* params,uint16_t len){
 void bSamplerCallback(byte* params,uint16_t len){
   Serial.println("sampling command");
   uint8_t newState = params[1];
-  if(newState = 0x01){
+  if(0x01 == newState){
     Serial.println("start sampling");
     loader.startSampleLoading(sampleLoadingReasonPeriodic);
   }
-  else if(newState = 0x02){
+  else if(0x02 == newState){
     Serial.println("stop sampling");
-    digitalWrite(CONTAINER_1_SENSOR_PIN,LOW);
+    loader.cancelSampleLoading();
   }
   
 }
@@ -123,6 +142,44 @@ void bProgramStateCallback(byte *params,uint16_t len){
   
   
 }
+
+void rainUpdateRoutine(){
+  if (isRaining) {
+      cummulativeClick += click;
+      if (click == 0) {
+        rainTimer--;
+        if (rainTimer <= 0) {
+          isRaining = false;
+          float totalRain = (float)((float)cummulativeClick / 5);
+          Serial.print("Toplam ");
+          Serial.print(totalRain);
+          Serial.println(" mm yağış düştü");
+          cummulativeClick = 0;
+          rainTimer = 5;
+        }
+      }
+      click = 0;
+    }
+}
+
+void counter() {
+  click += 1;
+
+  do {
+    if (digitalRead(RAIN_SIGNAL) == LOW) {
+      integrator += 1;
+    } else {
+      integrator -= 1;
+    }
+    if (integrator <= (RAIN_SENSOR_INTEGRATOR_TRESHOLD_NEGATIVE)) {
+      click--;
+      goto a;
+    }
+  } while (integrator < RAIN_SENSOR_INTEGRATOR_TRESHOLD);
+a:
+  integrator = 0;
+}
+
 
 void setup() {
   // put your setup code here, to run once:
@@ -163,7 +220,16 @@ void setup() {
   //writeToFile("data","04-05-17.da","selamin aleykum...");
   //getLastDataFile();
   //getLastRowsFromFile(1);
+
+  //Rain sensor initialization
+  pinMode(RAIN_VCC, OUTPUT);
+  digitalWrite(RAIN_VCC, HIGH);
+  pinMode(RAIN_SIGNAL, INPUT_PULLUP);
+  attachInterrupt(RAIN_SIGNAL, counter, FALLING);
 }
+
+
+
 
 void loop() {
   // put your main code here, to run repeatedly:
@@ -171,20 +237,24 @@ void loop() {
   switch(PROGRAM_STATE){
     case DATA_LOG_STATE:
       ble.receive();
-      if(millis()>sysTick+(ReadPeriodInMinutes)){
-        sysTick=millis();  
+      if(millis()>sysTick + unsigned(ReadPeriodInMinutes)){
+        sysTick=millis();
+        Serial.println("im here dude");
+        rainUpdateRoutine();  
         ReadAllSensors();
         sprintf(fname,"%02d-%02d-%02d.da",day(),month(),(year()%2000));
         writeToFile("data",fname,logBuffer);
-        digitalClockDisplay();
+        //digitalClockDisplay();
       }
-      if(millis()>periodicSamplerTick+50000){
+      if(millis()>periodicSamplerTick + 50000UL){
+        Serial.println("im here bitch");
         periodicSamplerTick = millis();
         checkForPeriodicSampling();
         Watchdog.reset();
       }
       break;
     case SAMPLING_STATE:
+    
       ble.receive();
       loader.operationHandler();
     case CALIBRATION_STATE:
@@ -266,7 +336,7 @@ void ReadAllSensors(){
   Serial.println("");
   #endif
   
-  sprintf(logBuffer, "%d-%d;%02d:%02d:%02d;%.2f;%.2f;%.2f;%.2f;%d;%.2f;%.2f;%.2f;%.2f;%d",devConfStr.fieldID,devConfStr.deviceID,hour(),minute(),second(),tempC,humdC,pH,oxygen,dist,calculateFlowFromHeight(devConfStr.notchHeight,dist),turbidity,conductivity,waterTemp,0);
+  sprintf(logBuffer, "%d-%d;%02d:%02d:%02d;%.2f;%.2f;%.2f;%.2f;%d;%.2f;%.2f;%.2f;%.2f;%.2f,%.2f",devConfStr.fieldID,devConfStr.deviceID,hour(),minute(),second(),tempC,humdC,pH,oxygen,dist,calculateFlowFromHeight(devConfStr.notchHeight,dist),turbidity,conductivity,waterTemp,(float)((float)click/5.0f),(float)((float)cummulativeClick / 5.0f));
   #ifdef _MKE_DEBUGGING_
   Serial.println(logBuffer);
   #endif
@@ -297,18 +367,26 @@ void getSamplingPercentagesStruct(){
   
 }
 
+
 void checkForPeriodicSampling(){
+  eeprom.readSamplerTimeStruct(&samplerTimeStr);
   uint8_t weekDay1 = weekday();
   weekDay1 = CIRCULAR_RETURN(weekDay1);
   uint8_t hour1 = hour();
   uint8_t minute1 = minute();
-  /*Serial.printf("WeekDay : %d , Hour : %d , Minute : %d \n",weekDay1,hour1,minute1);
+  Serial.printf("WeekDay : %d , Hour : %d , Minute : %d \n",weekDay1,hour1,minute1);
   Serial.printf("Alarm 1 : WeekDay : %d , Hour : %d , Minute : %d \n",samplerTimeStr.weekDay1,samplerTimeStr.hour1,samplerTimeStr.minute1);
-  Serial.printf("Alarm 2 : WeekDay : %d , Hour : %d , Minute : %d \n",samplerTimeStr.weekDay2,samplerTimeStr.hour2,samplerTimeStr.minute2);*/
+  Serial.printf("Alarm 2 : WeekDay : %d , Hour : %d , Minute : %d \n",samplerTimeStr.weekDay2,samplerTimeStr.hour2,samplerTimeStr.minute2);
   if ((samplerTimeStr.weekDay1 == weekDay1) && (samplerTimeStr.hour1 == hour1) && ((minute1 >= samplerTimeStr.minute1) && (minute1 < (samplerTimeStr.minute1 + 3)))) {
+      Serial.println("Alarm 1 triggered!\n");
+      loader.begin();
+      loader.registerCallback(&cb);
       loader.startSampleLoading(sampleLoadingReasonPeriodic);
   }
   if ((samplerTimeStr.weekDay2 == weekDay1) && (samplerTimeStr.hour2 == hour1) && ((minute1 >= samplerTimeStr.minute2) && (minute1 < (samplerTimeStr.minute2 + 3)))) {
+      Serial.println("Alarm 2 triggered!\n");
+      loader.begin();
+      loader.registerCallback(&cb);
       loader.startSampleLoading(sampleLoadingReasonPeriodic);
   }
 }
@@ -323,6 +401,7 @@ void cb (operationState s) {
       Serial.println("Sample Loader ==> No Operation");
       Serial5.print("SL 10");
       samplerLog("No Operation");
+      PROGRAM_STATE = DATA_LOG_STATE;
       break;
     case noozleCleaning:
       Serial.println("Sample Loader ==> Noozle Cleaning");
@@ -373,6 +452,7 @@ void cb (operationState s) {
     case finished:
       Serial.println("Sample Loader ==> Finished");
       Serial5.print("SL 20");
+      digitalWrite(2,HIGH);
       samplerLog("Finished");
       PROGRAM_STATE = DATA_LOG_STATE;
       break;
@@ -382,7 +462,7 @@ void cb (operationState s) {
       samplerLog("Cancelled");
       break;
   }
-}
+} 
 
 
 

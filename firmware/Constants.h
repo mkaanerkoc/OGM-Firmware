@@ -102,11 +102,13 @@ void digitalClockDisplay() {
   Serial.print(year()); 
   Serial.println(); 
 }
+/*
 char* getTime(){
   char returnArr[10];
   sprintf(returnArr,"%d:%d:%d",hour(),minute(),second());
   return returnArr;
 }
+*/
 float floatFromTwoRegister(bool reversed,uint16_t reg1,uint16_t reg2){
   float retVal = 0;
   uint8_t a = 0xff&(reg1>>8);
